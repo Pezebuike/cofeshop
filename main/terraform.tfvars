@@ -1,0 +1,5 @@
+aws_region="eu-west-2"
+project_name="awsinfra"
+vpc_cidr="172.16.0.0/16"
+public_subnet_az1_cidr="172.16.0.0/20"
+public_subnet_az2_cidr="172.16.16.0/20"
