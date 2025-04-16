@@ -20,10 +20,7 @@ module "vpc" {
   vpc_cidr                = var.vpc_cidr
   public_subnet_az1_cidr  = var.public_subnet_az1_cidr
   public_subnet_az2_cidr  = var.public_subnet_az2_cidr
-  # private_subnet_az1_cidr = var.private_subnet_az1_cidr
-  # private_subnet_az2_cidr = var.private_subnet_az2_cidr
-  # secure_subnet_az1_cidr  = var.secure_subnet_az1_cidr
-  # secure_subnet_az2_cidr  = var.secure_subnet_az2_cidr
+ 
 }
 
 # create security group
@@ -42,21 +39,6 @@ module "application_load_balancer" {
   vpc_id                = module.vpc.vpc_id
 }
 
-# create ec2
-# module "ec2" {
-#   source = "../modules/ec2"
-#   vpc_id = module.vpc.vpc_id
-#   region = var.aws_region
-# }
-
-# create rds
-# module "rds" {
-#   source                = "../modules/rds"
-#   vpc_id                = module.vpc.vpc_id
-#   alb_security_group_id = module.security_group.alb_security_group_id
-#   secure_subnet_az1_id  = module.vpc.secure_subnet_az1_id
-#   secure_subnet_az2_id  = module.vpc.secure_subnet_az2_id
-# }
 
 # create ASG
 module "asg" {
