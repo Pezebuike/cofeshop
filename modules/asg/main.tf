@@ -40,6 +40,13 @@ resource "aws_launch_template" "ec2_asg" {
   instance_type         = "t2.micro"
   user_data = base64encode(templatefile("userdata.sh", { request_id = "REQ000129834", name = "John" }))
   vpc_security_group_ids = [var.alb_security_group_id]
+
+  # Add metadata options to require IMDSv2
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"  # This ensures IMDSv2 is enforced and IMDSv1 is disabled
+    http_put_response_hop_limit = 1
+  }
   lifecycle {
     create_before_destroy = true
   }
