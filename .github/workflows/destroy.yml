@@ -1,13 +1,16 @@
 name: Destroy Infrastructure
-# This is a reusable workflow for destroying infrastructure
-
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       module:
-        type: string
+        type: choice
         description: 'Module to destroy'
         required: true
+        options:
+          - alb
+          - ec2
+          - security_group
+          - vpc
       resource_name:
         type: string
         description: 'Name of the resource to destroy'
@@ -24,9 +27,8 @@ env:
 
 jobs:
   destroy-plan:
-    name: "Plan Destroy ${{ inputs.module }}"
+    name: "Plan Destroy ${{ github.event.inputs.module }}"
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -43,41 +45,41 @@ jobs:
           role-session-name: Destroy
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Create Backend Configuration File
+      - name: Create Backend Configuration
         run: |
           cat > backend.tf << EOF
           terraform {
             backend "s3" {
               bucket         = "$BUCKET_TF_STATE"
-              key            = "${{ inputs.module }}/${{ inputs.resource_name }}.tfstate"
+              key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
               region         = "$aws_region"
               encryption     = true
-              dynamodb_table = "${{ inputs.module }}-terraform-lock"
+              dynamodb_table = "${{ github.event.inputs.module }}-terraform-lock"
             }
           }
           EOF
-        working-directory: modules/${{ inputs.module }}
+        working-directory: modules/${{ github.event.inputs.module }}
 
       - name: Terraform Init
         run: terraform init
-        working-directory: modules/${{ inputs.module }}
+        working-directory: modules/${{ github.event.inputs.module }}
 
       - name: Terraform Plan Destroy
-        run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ inputs.module }}.tfvars"
-        working-directory: modules/${{ inputs.module }}
+        run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
+        working-directory: modules/${{ github.event.inputs.module }}
 
       - name: Upload Terraform Destroy Plan
         uses: actions/upload-artifact@v3
         with:
-          name: terraform-plan-destroy
-          path: modules/${{ inputs.module }}/${{ env.TF_PLAN_FILE }}
+          name: terraform-plan-destroy-${{ github.event.inputs.module }}
+          path: modules/${{ github.event.inputs.module }}/${{ env.TF_PLAN_FILE }}
         
   destroy-apply:
-    name: "Apply Destroy ${{ inputs.module }}"
+    name: "Apply Destroy ${{ github.event.inputs.module }}"
     runs-on: ubuntu-latest
     needs: destroy-plan
     environment:
-      name: ${{ inputs.module }}-${{ inputs.resource_name }}-destroy
+      name: ${{ github.event.inputs.module }}-${{ github.event.inputs.resource_name }}-destroy
       url: ${{ steps.environment.outputs.environment_url }}
             
     steps:
@@ -96,13 +98,13 @@ jobs:
           role-session-name: Destroy
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Create Backend Configuration File
+      - name: Create Backend Configuration
         run: |
           cat > backend.tf << EOF
           terraform {
             backend "s3" {
               bucket         = "$BUCKET_TF_STATE"
-              key            = "${{ inputs.module }}/${{ inputs.resource_name }}.tfstate"
+              key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
               region         = "$aws_region"
               encryption     = true
               kms_key_id     = "${{ secrets.BACKEND_AWS_KMS_KEY_ID }}"
@@ -110,24 +112,24 @@ jobs:
             }
           }
           EOF
-        working-directory: modules/${{ inputs.module }}
+        working-directory: modules/${{ github.event.inputs.module }}
 
       - name: Download Terraform Plan Destroy
         uses: actions/download-artifact@v3
         with:
-          name: terraform-plan-destroy
-          path: modules/${{ inputs.module }}
+          name: terraform-plan-destroy-${{ github.event.inputs.module }}
+          path: modules/${{ github.event.inputs.module }}
 
       - name: Terraform Init
         run: terraform init
-        working-directory: modules/${{ inputs.module }}
+        working-directory: modules/${{ github.event.inputs.module }}
 
       - name: Terraform Apply Destroy
         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
-        working-directory: modules/${{ inputs.module }}
+        working-directory: modules/${{ github.event.inputs.module }}
         
       - name: Output Destruction Info
         run: |
           echo "environment_url=https://console.aws.amazon.com/console/home?region=${{ secrets.AWS_REGION }}" >> $GITHUB_OUTPUT
-          echo "Successfully destroyed ${{ inputs.module }} - ${{ inputs.resource_name }}"
+          echo "Successfully destroyed ${{ github.event.inputs.module }} - ${{ github.event.inputs.resource_name }}"
         id: environment
