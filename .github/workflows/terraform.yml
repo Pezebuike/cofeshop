@@ -1,8 +1,33 @@
 name: Build and Deploy Infrastructure
 # Triggering conditions for the workflow
 on:
+  # Trigger the workflow on push events to the main branch
   push:
+    branches:
+      - master  # Only trigger on the main branch
+  workflow_dispatch:  # Allows manual triggering of the workflow
+    inputs:
+      module:
+        type: choice  # Type of the input (choice)
+        description: 'Module to deploy'  # Description of the input
+        required: true  # This input is required
+        options:
+          - alb  # Option for Application Load Balancer module
+          - ec2  # Option for EC2 module
+          - security_group  # Option for Security Group module
+          - vpc  # Option for VPC module
+         
+      resource_name:
+        type: string  # Type of the input (string)
+        description: 'Name of the resource to deploy'
+        required: true  # This input is required
+
+permissions:
+  contents: read  # Read permissions for the repository contents
+  id-token: write  # Write permissions for the ID token   
+    
 env:
+  TF_PLAN_FILE: ${{ github.sha }}.tfplan # Name of the Terraform plan file
   # Environment variables for AWS configuration
   aws_region: ${{ secrets.AWS_REGION }}  # AWS region for deployment
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}  # S3 bucket for storing Terraform state
