@@ -1,0 +1,51 @@
+name: Infrastructure Management Router
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        description: 'Action to perform'
+        required: true
+        options:
+          - apply
+          - destroy
+      module:
+        type: choice
+        description: 'Module to manage'
+        required: true
+        options:
+          - alb
+          - ec2
+          - security_group
+          - vpc
+      resource_name:
+        type: string
+        description: 'Name of the resource'
+        required: true
+
+env:
+  aws_region: ${{ secrets.AWS_REGION }}
+  BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
+
+jobs:
+  router:
+    name: "Route to ${{ github.event.inputs.action }} workflow"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Trigger workflow
+        run: |
+          echo "Triggering ${{ github.event.inputs.action }} workflow for ${{ github.event.inputs.module }} module..."
+          gh workflow run ${{ github.event.inputs.action }}.yml \
+            -f module=${{ github.event.inputs.module }} \
+            -f resource_name="${{ github.event.inputs.resource_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Confirm workflow triggered
+        run: |
+          echo "Successfully triggered the ${{ github.event.inputs.action }} workflow"
+          echo "Module: ${{ github.event.inputs.module }}"
+          echo "Resource name: ${{ github.event.inputs.resource_name }}"
