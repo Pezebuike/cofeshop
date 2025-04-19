@@ -1,0 +1,1 @@
+vpc_id=aws_vpc.infra.id
