@@ -1,6 +1,4 @@
 name: Infrastructure Management Router
-# This workflow acts as a router to trigger either the apply or destroy workflow
-
 on:
   workflow_dispatch:
     inputs:
@@ -24,6 +22,13 @@ on:
         type: string
         description: 'Name of the resource'
         required: true
+
+permissions:
+  contents: read
+  id-token: write  # Write permissions for the ID token    
+env:
+  aws_region: ${{ secrets.AWS_REGION }}
+  BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
 
 jobs:
   router:
@@ -50,117 +55,3 @@ jobs:
           echo "Successfully triggered the ${{ github.event.inputs.action }} workflow"
           echo "Module: ${{ github.event.inputs.module }}"
           echo "Resource name: ${{ github.event.inputs.resource_name }}"
-
-
-# name: Infrastructure Management
-# on:
-#   push:
-#   workflow_dispatch:
-#     inputs:
-#       action:
-#         type: choice
-#         description: 'Action to perform'
-#         required: true
-#         options:
-#           - apply
-#           - destroy
-#       module:
-#         type: choice
-#         description: 'Module to manage'
-#         required: true
-#         options:
-#           - alb
-#           - ec2
-#           - security_group
-#           - vpc
-#       resource_name:
-#         type: string
-#         description: 'Name of the resource'
-#         required: true
-
-# permissions:
-#   contents: read
-#   id-token: write
-   
-# env:
-#   TF_PLAN_FILE: ${{ github.sha }}.tfplan
-#   aws_region: ${{ secrets.AWS_REGION }}
-#   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-
-
-# jobs:
-#   manage-infrastructure:
-#     name: "${{ github.event.inputs.action }} ${{ github.event.inputs.module }}"
-#     runs-on: ubuntu-latest
-    
-#     # Define environment for approval
-#     environment:
-#       name: ${{ github.event.inputs.module }}-${{ github.event.inputs.resource_name }}${{ github.event.inputs.action == 'destroy' && '-destroy' || '' }}
-#       url: ${{ steps.environment.outputs.environment_url }}
-    
-#     steps:
-#       # Common steps
-#       - name: Checkout Code
-#         uses: actions/checkout@v4
-      
-#       - name: Set Up Terraform
-#         uses: hashicorp/setup-terraform@v2
-#         with:
-#           terraform_version: 1.7
-      
-#       - name: Configure AWS Credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           role-to-assume: ${{ secrets.AWS_OIDC_DEPLOY_ROLE }}
-#           role-session-name: Deployment
-#           aws-region: ${{ secrets.AWS_REGION }}
-          
-#       # Create backend configuration
-#       - name: Create Backend Config
-#         run: |
-#           cat > backend.tf << EOF
-#           terraform {
-#             backend "s3" {
-#               bucket         = "$BUCKET_TF_STATE"
-#               key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
-#               region         = "$aws_region"
-#               encryption     = true
-#               dynamodb_table = "${{ github.event.inputs.module }}-terraform-lock"
-#             }
-#           }
-#           EOF
-#         working-directory: modules/${{ github.event.inputs.module }}
-      
-#       # Initialize Terraform
-#       - name: Terraform Init
-#         run: terraform init
-#         working-directory: modules/${{ github.event.inputs.module }}
-        
-#       # Run validation
-#       - name: Terraform Validate
-#         run: terraform validate
-#         working-directory: modules/${{ github.event.inputs.module }}
-      
-#       # Conditional Apply Plan
-#       - name: Terraform Plan (Apply)
-#         if: github.event.inputs.action == 'apply'
-#         run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-#         working-directory: modules/${{ github.event.inputs.module }}
-        
-#       # Conditional Destroy Plan  
-#       - name: Terraform Plan (Destroy)
-#         if: github.event.inputs.action == 'destroy'
-#         run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
-#         working-directory: modules/${{ github.event.inputs.module }}
-        
-#       # Apply the appropriate plan
-#       - name: Terraform Apply
-#         run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
-#         working-directory: modules/${{ github.event.inputs.module }}
-        
-#       # Set output for environment URL
-#       - name: Output Info
-#         run: |
-#           echo "environment_url=https://console.aws.amazon.com/console/home?region=${{ secrets.AWS_REGION }}" >> $GITHUB_OUTPUT
-#           echo "Successfully ${{ github.event.inputs.action == 'apply' && 'deployed' || 'destroyed' }} ${{ github.event.inputs.module }} - ${{ github.event.inputs.resource_name }}"
-#         id: environment

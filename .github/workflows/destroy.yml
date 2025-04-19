@@ -3,14 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       module:
-        type: choice
+        type: string
         description: 'Module to destroy'
         required: true
-        options:
-          - alb
-          - ec2
-          - security_group
-          - vpc
       resource_name:
         type: string
         description: 'Name of the resource to destroy'
@@ -18,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
     
 env:
   TF_PLAN_FILE: ${{ github.sha }}.tfplan
@@ -41,8 +35,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_DEPLOY_ROLE }}
-          role-session-name: Destroy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Create Backend Configuration
@@ -94,8 +88,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_DEPLOY_ROLE }}
-          role-session-name: Destroy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Create Backend Configuration
