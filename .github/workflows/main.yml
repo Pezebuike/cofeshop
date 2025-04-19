@@ -1,31 +1,32 @@
 name: Infrastructure Management
 on:
-  workflow_dispatch:
-    inputs:
-      action:
-        type: choice
-        description: 'Action to perform'
-        required: true
-        options:
-          - apply
-          - destroy
-      module:
-        type: choice
-        description: 'Module to manage'
-        required: true
-        options:
-          - alb
-          - ec2
-          - security_group
-          - vpc
-      resource_name:
-        type: string
-        description: 'Name of the resource'
-        required: true
+  push:
+  # workflow_dispatch:
+  #   inputs:
+  #     action:
+  #       type: choice
+  #       description: 'Action to perform'
+  #       required: true
+  #       options:
+  #         - apply
+  #         - destroy
+  #     module:
+  #       type: choice
+  #       description: 'Module to manage'
+  #       required: true
+  #       options:
+  #         - alb
+  #         - ec2
+  #         - security_group
+  #         - vpc
+  #     resource_name:
+  #       type: string
+  #       description: 'Name of the resource'
+  #       required: true
 
-permissions:
-  contents: read
-  id-token: write
+# permissions:
+#   contents: read
+#   id-token: write
    
 env:
   TF_PLAN_FILE: ${{ github.sha }}.tfplan
