@@ -1,1 +1,1 @@
-vpc_id=aws_vpc.infra.id
+vpc_id = vpc.vpc_id
