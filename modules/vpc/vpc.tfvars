@@ -1,9 +1,5 @@
-region = "${var.region}"
-project_name="${var.project_name}-alb"
-vpc_cidr = var.vpc_cidr
-public_subnet_az1_cidr = var.public_subnet_az1_cidr
-public_subnet_az2_cidr = var.public_subnet_az2_cidr
-
-
-
-
+saws_region="eu-west-2-vpc"
+project_name="awsinfra"
+vpc_cidr="172.16.0.0/16"
+public_subnet_az1_cidr="172.16.0.0/20"
+public_subnet_az2_cidr="172.16.16.0/20"
