@@ -15,7 +15,7 @@ on:
         required: true
         options:
           - alb
-          - ec2
+          - asg
           - security_group
           - vpc
       resource_name:
