@@ -113,3 +113,15 @@ jobs:
           echo "environment_url=https://console.aws.amazon.com/console/home?region=${{ env.aws_region }}" >> $GITHUB_OUTPUT
           echo "Successfully deployed ${{ github.event.inputs.module }} - ${{ github.event.inputs.resource_name }}"
         id: environment
+
+        - name: Destroy Terraform Infrastructure
+        working-directory: modules/${{ github.event.inputs.module }}
+        run: |
+          terraform apply -auto-approve destroyfile
+      
+      # Step 9: Output destruction info
+        - name: Output Destruction Info
+          run: |
+            echo "environment_url=https://console.aws.amazon.com/console/home?region=${{ env.aws_region }}" >> $GITHUB_OUTPUT
+            echo "Successfully destroyed ${{ github.event.inputs.module }} - ${{ github.event.inputs.resource_name }}"
+          id: environment
