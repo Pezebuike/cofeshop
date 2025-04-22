@@ -80,7 +80,7 @@ jobs:
         id: plan
         working-directory: modules/${{ github.event.inputs.module }}
         run: |
-          terraform plan -destroy -var-file="${{ github.event.inputs.module }}.tfvars" -input=false -no-color -out destroyfile
+          terraform plan -destroy -var-file="${{ github.event.inputs.module }}.tfvars" -lock=false -input=false -no-color -out destroyfile 
         continue-on-error: true
       
       # Step 7: Check if plan failed
