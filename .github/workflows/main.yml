@@ -1,7 +1,5 @@
 name: Infrastructure Management
-# Workflow to either apply or destroy infrastructure based on inputs
 on:
-  # Allow manual triggering of the workflow with parameters
   workflow_dispatch:
     inputs:
       action:
@@ -24,55 +22,74 @@ on:
         type: string
         description: 'Name of the resource'
         required: true
-
-# Define GitHub Actions permissions
 permissions:
   contents: read
   id-token: write
    
-# Define environment variables available to all jobs
 env:
   TF_PLAN_FILE: ${{ github.sha }}.tfplan
   aws_region: ${{ secrets.AWS_REGION }}
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-
-# Define the jobs to run in this workflow
+  aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 jobs:
-  setup:
-    name: "Setup"
-    runs-on: ubuntu-latest
-    steps:
-      # Step 1: Checkout code from the repository
-      - name: Checkout Code
-        uses: actions/checkout@v4  # Use the checkout action to pull down code
-      
-      # Step 2: Install Terraform
-      - name: Set Up Terraform
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y unzip
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -  # Add HashiCorp's GPG key
-          sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"  # Add Terraform repository
-          sudo apt-get update -y
-          sudo apt-get install -y terraform  # Install Terraform
-      
-      # Step 3: Configure AWS credentials for Terraform
-      - name: Configure AWS Credentials for Terraform
-        uses: aws-actions/configure-aws-credentials@v4  # Use the AWS credentials action (v4)
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Access key stored in GitHub Secrets
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Secret key stored in GitHub Secrets
-          aws-region: ${{ env.aws_region }}  # AWS region set in the environment variables
-
-  # Dynamically call either apply or destroy workflow based on input
   manage-infrastructure:
     name: "${{ github.event.inputs.action }} ${{ github.event.inputs.module }}"
-    needs: setup
-    uses: ./.github/workflows/${{ github.event.inputs.action }}.yml
-    with:
-      module: ${{ github.event.inputs.module }}
-      resource_name: ${{ github.event.inputs.resource_name }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      # Common steps
+      - name: Checkout Code
+        uses: actions/checkout@v4
+     
+      - name: Set Up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7
+     
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.aws_region }}
+          aws-access-key-id: ${{ env.aws_access_key_id }}
+          aws-secret-access-key: ${{ env.aws_secret_access_key }}
+         
+      # Apply-specific steps
+      - name: Create Backend Config
+        run: |
+          cat > backend.tf << EOF
+          terraform {
+            backend "s3" {
+              bucket         = "$BUCKET_TF_STATE"
+              key            = "${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate"
+              region         = "$aws_region"
+              encryption     = true
+              dynamodb_table = "${{ github.event.inputs.module }}-terraform-lock"
+            }
+          }
+          EOF
+        working-directory: modules/${{ github.event.inputs.module }}
+     
+      - name: Terraform Init
+        run: terraform init
+        working-directory: modules/${{ github.event.inputs.module }}
+       
+      # Conditional Apply steps
+      - name: Terraform Plan (Apply)
+        if: github.event.inputs.action == 'apply'
+        run: terraform plan -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
+        working-directory: modules/${{ github.event.inputs.module }}
+       
+      # Conditional Destroy steps  
+      - name: Terraform Plan (Destroy)
+        if: github.event.inputs.action == 'destroy'
+        run: terraform plan -destroy -out ${{ env.TF_PLAN_FILE }} -var-file="${{ github.event.inputs.module }}.tfvars"
+        working-directory: modules/${{ github.event.inputs.module }}
+       
+      # Apply with approval
+      - name: Terraform Apply
+        if: success()
+        run: terraform apply -auto-approve ${{ env.TF_PLAN_FILE }}
+        working-directory: modules/${{ github.event.inputs.module }}
 
 # name: Infrastructure Management Router
 # on:
