@@ -1,5 +1,7 @@
-project_name="${var.project_name}-alb"
-vpc_id = aws_vpc.infra.id
-public_subnet_az1_id=aws_subnet.public_subnet_az1.id
-public_subnet_az2_id=aws_subnet.public_subnet_az2.id
-alb_security_group_id=aws_security_group.alb_security_group.id
+project_name="eu-west-2"
+vpc_id = "awsinfra"
+public_subnet_az1_id="172.16.0.0/20"
+public_subnet_az2_id="172.16.16.0/20"
+alb_security_group_id=sg-0e9d30dfd5047c45e
+
+
