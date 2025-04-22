@@ -1,5 +1,7 @@
-name: Infrastructure Management Router
+name: Infrastructure Management
+# Workflow to either apply or destroy infrastructure based on inputs
 on:
+  # Allow manual triggering of the workflow with parameters
   workflow_dispatch:
     inputs:
       action:
@@ -15,41 +17,115 @@ on:
         required: true
         options:
           - alb
-          - asg
+          - ec2
           - security_group
           - vpc
       resource_name:
         type: string
         description: 'Name of the resource'
         required: true
-        
+
+# Define GitHub Actions permissions
 permissions:
   contents: read
   id-token: write
-
+   
+# Define environment variables available to all jobs
 env:
+  TF_PLAN_FILE: ${{ github.sha }}.tfplan
   aws_region: ${{ secrets.AWS_REGION }}
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
 
+# Define the jobs to run in this workflow
 jobs:
-  router:
-    name: "Route to ${{ github.event.inputs.action }} workflow"
+  setup:
+    name: "Setup"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Step 1: Checkout code from the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4  # Use the checkout action to pull down code
       
-      - name: Trigger workflow
+      # Step 2: Install Terraform
+      - name: Set Up Terraform
         run: |
-          echo "Triggering ${{ github.event.inputs.action }} workflow for ${{ github.event.inputs.module }} module..."
-          gh workflow run ${{ github.event.inputs.action }}.yml \
-            -f module=${{ github.event.inputs.module }} \
-            -f resource_name="${{ github.event.inputs.resource_name }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          sudo apt-get update -y
+          sudo apt-get install -y unzip
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -  # Add HashiCorp's GPG key
+          sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"  # Add Terraform repository
+          sudo apt-get update -y
+          sudo apt-get install -y terraform  # Install Terraform
       
-      - name: Confirm workflow triggered
-        run: |
-          echo "Successfully triggered the ${{ github.event.inputs.action }} workflow"
-          echo "Module: ${{ github.event.inputs.module }}"
-          echo "Resource name: ${{ github.event.inputs.resource_name }}"
+      # Step 3: Configure AWS credentials for Terraform
+      - name: Configure AWS Credentials for Terraform
+        uses: aws-actions/configure-aws-credentials@v4  # Use the AWS credentials action (v4)
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Access key stored in GitHub Secrets
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Secret key stored in GitHub Secrets
+          aws-region: ${{ env.aws_region }}  # AWS region set in the environment variables
+
+  # Dynamically call either apply or destroy workflow based on input
+  manage-infrastructure:
+    name: "${{ github.event.inputs.action }} ${{ github.event.inputs.module }}"
+    needs: setup
+    uses: ./.github/workflows/${{ github.event.inputs.action }}.yml
+    with:
+      module: ${{ github.event.inputs.module }}
+      resource_name: ${{ github.event.inputs.resource_name }}
+    secrets: inherit
+
+# name: Infrastructure Management Router
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       action:
+#         type: choice
+#         description: 'Action to perform'
+#         required: true
+#         options:
+#           - apply
+#           - destroy
+#       module:
+#         type: choice
+#         description: 'Module to manage'
+#         required: true
+#         options:
+#           - alb
+#           - asg
+#           - security_group
+#           - vpc
+#       resource_name:
+#         type: string
+#         description: 'Name of the resource'
+#         required: true
+        
+# permissions:
+#   contents: read
+#   id-token: write
+
+# env:
+#   aws_region: ${{ secrets.AWS_REGION }}
+#   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
+
+# jobs:
+#   router:
+#     name: "Route to ${{ github.event.inputs.action }} workflow"
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+      
+#       - name: Trigger workflow
+#         run: |
+#           echo "Triggering ${{ github.event.inputs.action }} workflow for ${{ github.event.inputs.module }} module..."
+#           gh workflow run ${{ github.event.inputs.action }}.yml \
+#             -f module=${{ github.event.inputs.module }} \
+#             -f resource_name="${{ github.event.inputs.resource_name }}"
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+#       - name: Confirm workflow triggered
+#         run: |
+#           echo "Successfully triggered the ${{ github.event.inputs.action }} workflow"
+#           echo "Module: ${{ github.event.inputs.module }}"
+#           echo "Resource name: ${{ github.event.inputs.resource_name }}"
