@@ -1,1 +1,1 @@
-vpc_id = aws_vpc.infra.id
+vpc_id = "" # Add the VPC ID where the security group will be created
