@@ -10,11 +10,9 @@ on:
         type: string
         description: 'Name of the resource to destroy'
         required: true
-
 env:
   aws_region: ${{ secrets.AWS_REGION }}
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-
 jobs:
   destroy-infra:
     name: "Destroy ${{ github.event.inputs.module }}"
@@ -25,12 +23,12 @@ jobs:
     environment:
       name: ${{ github.event.inputs.module }}-${{ github.event.inputs.resource_name }}-destroy
       url: ${{ steps.environment.outputs.environment_url }}
-    
+   
     steps:
       # Step 1: Checkout code
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+     
       # Step 2: Install Terraform
       - name: Set Up Terraform
         run: |
@@ -40,7 +38,7 @@ jobs:
           sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
           sudo apt-get update -y
           sudo apt-get install -y terraform
-      
+     
       # Step 3: Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -48,7 +46,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.aws_region }}
-      
+     
       # Step 4: Create backend configuration
       - name: Create Backend Configuration
         run: |
@@ -64,7 +62,7 @@ jobs:
           }
           EOF
         working-directory: modules/${{ github.event.inputs.module }}
-      
+     
       # Step 5: Initialize Terraform
       - name: Initialize Terraform
         id: init
@@ -74,26 +72,26 @@ jobs:
             -backend-config="key=${{ github.event.inputs.module }}/${{ github.event.inputs.resource_name }}.tfstate" \
             -backend-config="region=${{ env.aws_region }}" \
             -backend-config="skip_credentials_validation=true"
-      
+     
       # Step 6: Plan Terraform destroy
       - name: Plan Terraform Destroy
         id: plan
         working-directory: modules/${{ github.event.inputs.module }}
         run: |
-          terraform plan -destroy -var-file="${{ github.event.inputs.module }}.tfvars" -lock=false -input=false -no-color -out destroyfile 
+          terraform plan -destroy -var-file="${{ github.event.inputs.module }}.tfvars" -lock=false -input=false -no-color -out destroyfile
         continue-on-error: true
-      
+     
       # Step 7: Check if plan failed
       - name: Terraform Status
         if: steps.plan.outcome == 'failure'
         run: exit 1
-      
+     
       # Step 8: Apply the Terraform destroy
       - name: Destroy Terraform Infrastructure
         working-directory: modules/${{ github.event.inputs.module }}
         run: |
           terraform apply -auto-approve destroyfile
-      
+     
       # Step 9: Output destruction info
       - name: Output Destruction Info
         run: |
